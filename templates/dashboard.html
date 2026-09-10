@@ -1,691 +1,321 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dashboard Reseller</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --cream: #fefcd0;
-            --pink: #c381b5;
-            --pink-dark: #9a5f8e;
-            --black: #1a1a2e;
-            --white: #ffffff;
-            --green: #4ade80;
-            --yellow: #fbbf24;
-            --red: #f87171;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'VT323', monospace;
-            background: var(--cream);
-            background-image:
-                linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
-            background-size: 16px 16px;
-            color: var(--black);
-            min-height: 100vh;
-            -webkit-font-smoothing: none;
-            image-rendering: pixelated;
-        }
-
-        .page {
-            min-height: 100vh;
-            padding: 24px 16px 32px;
-        }
-
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-        }
-
-        .pixel-border {
-            border: 4px solid var(--black);
-            border-image-source: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M3 1h1v1h-1zM4 1h1v1h-1zM2 2h1v1h-1zM5 2h1v1h-1zM1 3h1v1h-1zM6 3h1v1h-1zM1 4h1v1h-1zM6 4h1v1h-1zM2 5h1v1h-1zM5 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1z' fill='%231a1a2e'/%3E%3C/svg%3E");
-            border-image-slice: 3;
-            border-image-repeat: repeat;
-        }
-
-        .pixel-shadow {
-            box-shadow: 6px 6px 0 var(--black);
-        }
-
-        .top-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .top-bar h1 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 12px;
-            color: var(--black);
-        }
-
-        .add-trigger {
-            padding: 10px 16px;
-            background: var(--pink);
-            border: 3px solid var(--black);
-            color: var(--cream);
-            font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
-            cursor: pointer;
-            box-shadow: 4px 4px 0 var(--black);
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
-
-        .add-trigger:hover {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0 var(--black);
-        }
-
-        .add-trigger:active {
-            transform: translate(4px, 4px);
-            box-shadow: 0 0 0 var(--black);
-        }
-
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 24px;
-        }
-
-        .stat-pill {
-            background: var(--white);
-            padding: 16px 12px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 14px;
-            color: var(--black);
-            margin-bottom: 6px;
-        }
-
-        .stat-value.pink { color: var(--pink); }
-        .stat-value.green { color: #16a34a; }
-        .stat-value.yellow { color: #ca8a04; }
-
-        .stat-label {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 6px;
-            color: var(--black);
-            opacity: 0.6;
-            letter-spacing: 0.5px;
-        }
-
-        .status-toast {
-            text-align: center;
-            padding: 10px;
-            margin-bottom: 12px;
-            font-size: 14px;
-            line-height: 1.6;
-            display: none;
-        }
-
-        .status-toast.show { display: block; }
-        .status-toast.success { background: #d4edda; color: #155724; border: 3px solid #155724; }
-        .status-toast.error { background: #f8d7da; color: #721c24; border: 3px solid #721c24; }
-
-        .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .section-header h2 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 9px;
-            color: var(--black);
-        }
-
-        .product-count {
-            font-size: 14px;
-            color: var(--black);
-            opacity: 0.5;
-        }
-
-        .product-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .product-card {
-            background: var(--white);
-            padding: 16px;
-            position: relative;
-        }
-
-        .product-card::before {
-            content: '';
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 8px;
-            height: 8px;
-            background: var(--pink);
-        }
-
-        .card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-
-        .card-sku {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 6px;
-            color: var(--black);
-            opacity: 0.5;
-            margin-bottom: 4px;
-            letter-spacing: 0.5px;
-        }
-
-        .card-top h3 {
-            font-size: 20px;
-            color: var(--black);
-            line-height: 1.3;
-        }
-
-        .card-price {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            color: #16a34a;
-            white-space: nowrap;
-            margin-left: 12px;
-        }
-
-        .card-desc {
-            font-size: 16px;
-            color: var(--black);
-            opacity: 0.7;
-            line-height: 1.4;
-            margin-bottom: 12px;
-        }
-
-        .card-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding-top: 12px;
-            border-top: 3px solid var(--black);
-        }
-
-        .stock-input {
-            flex: 1;
-            padding: 10px;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            color: var(--black);
-            font-family: 'VT323', monospace;
-            font-size: 20px;
-            text-align: center;
-            outline: none;
-        }
-
-        .stock-input:focus {
-            box-shadow: 3px 3px 0 var(--pink);
-        }
-
-        .btn {
-            padding: 10px 12px;
-            border: 3px solid var(--black);
-            font-family: 'Press Start 2P', monospace;
-            font-size: 6px;
-            cursor: pointer;
-            box-shadow: 3px 3px 0 var(--black);
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
-
-        .btn:hover {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0 var(--black);
-        }
-
-        .btn:active {
-            transform: translate(3px, 3px);
-            box-shadow: 0 0 0 var(--black);
-        }
-
-        .btn-success {
-            background: var(--green);
-            color: var(--black);
-        }
-
-        .btn-danger {
-            background: var(--red);
-            color: var(--black);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 48px 24px;
-            background: var(--white);
-        }
-
-        .empty-icon {
-            font-size: 32px;
-            margin-bottom: 16px;
-        }
-
-        .empty-state h3 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            color: var(--black);
-            margin-bottom: 8px;
-        }
-
-        .empty-state p {
-            font-size: 14px;
-            color: var(--black);
-            opacity: 0.6;
-            line-height: 1.6;
-        }
-
-        .add-form-card {
-            background: var(--white);
-            padding: 20px;
-            margin-bottom: 16px;
-            display: none;
-        }
-
-        .add-form-card.active { display: block; }
-
-        .form-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-
-        .form-header h2 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            color: var(--black);
-        }
-
-        .form-close {
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            color: var(--black);
-            font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
-            cursor: pointer;
-        }
-
-        .form-close:hover {
-            background: var(--pink);
-            color: var(--cream);
-        }
-
-        .field {
-            margin-bottom: 14px;
-        }
-
-        .field label {
-            display: block;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 6px;
-            color: var(--black);
-            margin-bottom: 6px;
-            letter-spacing: 0.5px;
-        }
-
-        .field input,
-        .field textarea {
-            width: 100%;
-            padding: 10px;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            color: var(--black);
-            font-family: 'VT323', monospace;
-            font-size: 20px;
-            outline: none;
-        }
-
-        .field input:focus,
-        .field textarea:focus {
-            box-shadow: 3px 3px 0 var(--pink);
-        }
-
-        .field input::placeholder,
-        .field textarea::placeholder {
-            color: var(--black);
-            opacity: 0.3;
-        }
-
-        .field textarea {
-            resize: vertical;
-            min-height: 60px;
-            line-height: 2;
-        }
-
-        .field-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-        }
-
-        .form-actions .btn {
-            flex: 1;
-            padding: 12px;
-            font-size: 7px;
-        }
-
-        .btn-cancel {
-            background: var(--cream);
-            color: var(--black);
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 0;
-            border-top-color: var(--cream);
-            animation: spin 0.8s steps(8) infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .speech-bubble {
-            position: relative;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            padding: 10px 14px;
-            margin-top: 16px;
-            font-size: 14px;
-            line-height: 1.6;
-            text-align: center;
-        }
-
-        .speech-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 16px;
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 6px solid var(--black);
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dasbor Reseller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { --bg:#fefcd0; --surface:#fff; --ink:#1a1a2e; --muted:#555466; --line:#1a1a2e; --brand:#c381b5; --brand-dark:#9a5f8e; --danger:#a21c39; --success:#13754c; --pixel:'Press Start 2P', monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; background:var(--bg); background-image:linear-gradient(#1a1a2e09 1px, transparent 1px),linear-gradient(90deg,#1a1a2e09 1px,transparent 1px); background-size:16px 16px; color:var(--ink); font:22px/1.4 'VT323', monospace; }
+    button, input, select, textarea { font:inherit; }
+    button { cursor:pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline:3px solid var(--brand-dark); outline-offset:4px; }
+    .shell { width:min(100%, 760px); margin:0 auto; padding:24px 20px calc(112px + env(safe-area-inset-bottom)); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:22px; }
+    .brand { font:10px/1.8 var(--pixel); }
+    .brand small { display:block; color:var(--muted); font:18px/1.5 'VT323',monospace; }
+    .close-button { min-height:44px; border:2px solid var(--line); background:var(--surface); color:var(--ink); padding:8px 12px; box-shadow:3px 3px 0 var(--ink); }
+    .panel { background:var(--surface); border:2px solid var(--line); padding:22px; box-shadow:5px 5px 0 var(--ink); }
+    .intro { position:relative; margin:32px 0 22px; text-align:center; padding:32px 18px 24px; }
+    .eyebrow { display:inline-block; background:var(--brand); color:var(--ink); padding:10px 12px; margin:-48px 0 20px; font:8px/1.6 var(--pixel); transform:rotate(-2deg); }
+    h1, h2, h3, p { margin:0; }
+    h1 { font:14px/1.8 var(--pixel); margin-bottom:12px; text-transform:uppercase; } h2 { font:10px/1.8 var(--pixel); text-transform:uppercase; } h3 { font-size:24px; }
+    .subtle { color:var(--muted); }
+    .stats { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin:16px 0 24px; }
+    .stat { min-height:110px; padding:18px 10px; border:2px solid var(--line); background:var(--surface); box-shadow:3px 3px 0 var(--ink); text-align:center; }
+    .stat-label { display:block; color:var(--muted); font:8px/1.8 var(--pixel); text-transform:uppercase; margin-bottom:14px; }
+    .stat-value { display:block; font:clamp(10px,3vw,14px)/1.6 var(--pixel); overflow-wrap:anywhere; }
+    #totalProducts { color:var(--brand-dark); } #totalRevenue { color:var(--success); }
+    .notice { display:none; margin:0 0 20px; padding:12px 14px; border:2px solid; font-size:20px; }
+    .notice.show { display:block; }.notice.success { color:var(--success); background:#eefaf4; border-color:#9cdbba; }.notice.error { color:#8f1631; background:#fff0f3; border-color:#f0a6b7; }
+    .section { display:none; }.section.active { display:block; }
+    .section-heading { display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .count { color:var(--muted); font-size:18px; }
+    .products { display:grid; gap:18px; }
+    .product { padding:18px; border:2px solid var(--line); background:var(--surface); box-shadow:4px 4px 0 var(--ink); }
+    .product-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:10px; }.product-header > div { min-width:0; }.product-header h3 { overflow-wrap:anywhere; }
+    .sku { color:var(--muted); font:8px/1.8 var(--pixel); margin-bottom:6px; }.meta { color:var(--muted); font-size:18px; }.price { font:10px/1.8 var(--pixel); color:var(--success); }.description { margin:10px 0; color:var(--muted); overflow-wrap:anywhere; }
+    .product-actions { display:grid; grid-template-columns:minmax(90px, 1fr) auto auto; gap:8px; padding-top:12px; border-top:1px solid var(--line); }
+    .empty, .loading, .load-error { padding:28px 16px; background:var(--surface); text-align:center; border:2px dashed var(--line); color:var(--muted); }
+    .load-error { color:#8f1631; border-color:#e7a0af; }
+    .product-tools { display:flex; gap:10px; margin-bottom:20px; }.product-tools input { flex:1; min-width:0; }.pagination { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-top:22px; }.pagination span { color:var(--muted); font-size:18px; text-align:center; }
+    .form-grid { display:grid; gap:14px; }.two-up { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    label { display:grid; gap:10px; font:8px/1.8 var(--pixel); text-transform:uppercase; } input, select, textarea { width:100%; min-height:48px; padding:10px 12px; border:3px solid var(--line); border-radius:0; background:var(--bg); color:var(--ink); font:22px/1.3 'VT323',monospace; } textarea { min-height:112px; resize:vertical; }
+    .button { min-height:44px; border:2px solid var(--line); padding:10px 12px; font:8px/1.8 var(--pixel); text-transform:uppercase; box-shadow:3px 3px 0 var(--ink); }.button.primary { background:var(--brand); color:var(--ink); }.button.primary:hover { background:#dba2cf; }.button.secondary { background:var(--surface); color:var(--ink); }.button.danger { background:#fff0f3; color:var(--danger); }.button:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }.button:active:not(:disabled), .close-button:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+    .form-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:12px; margin-top:8px; }
+    .bottom-nav { position:fixed; z-index:2; left:50%; bottom:0; width:min(100%,760px); transform:translateX(-50%); display:flex; gap:8px; padding:12px max(12px,env(safe-area-inset-left)) calc(12px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-right)); background:var(--bg); border:2px solid var(--line); border-bottom:0; }
+    .nav-button { min-width:0; flex:1; min-height:48px; border:2px solid var(--line); background:var(--surface); color:var(--ink); font:8px/1.8 var(--pixel); text-transform:uppercase; padding:8px 4px; }.nav-button[aria-current="page"] { background:var(--brand); box-shadow:3px 3px 0 var(--ink); }
+    .store-note { padding:16px 0; font-size:18px; text-align:center; color:var(--muted); }
+    @media (min-width:600px) { .shell { padding-top:32px; padding-bottom:32px; }.stats { grid-template-columns:repeat(4,minmax(0,1fr)); }.bottom-nav { position:static; width:auto; transform:none; padding:0; margin-bottom:36px; border:0; background:transparent; } }
+    @media (max-width:420px) { .two-up { grid-template-columns:1fr; }.product-actions { grid-template-columns:1fr 1fr; }.product-actions input { grid-column:1 / -1; }.close-button { padding:8px; font-size:18px; }.pagination .button { padding:9px 6px; font-size:7px; } }
+  </style>
 </head>
 <body>
-    <div class="page">
-        <div class="container">
-            <div class="top-bar">
-                <h1>★ DASHBOARD ★</h1>
-                <button class="add-trigger" onclick="toggleAddForm()" id="addTrigger">
-                    + PRODUK
-                </button>
-            </div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">BERSAMA STORE<small>Dasbor Reseller</small></div>
+      <button class="close-button" type="button" id="closeButton">Kembali ke Bot</button>
+    </header>
+    <nav class="bottom-nav" aria-label="Navigasi dasbor">
+      <button class="nav-button" type="button" data-view="overview" aria-current="page">Ringkasan</button>
+      <button class="nav-button" type="button" data-view="products">Produk</button>
+      <button class="nav-button" type="button" data-view="add">Tambah produk</button>
+    </nav>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
 
-            <div class="stats-row">
-                <div class="stat-pill pixel-border">
-                    <div class="stat-value pink" id="totalProducts">0</div>
-                    <div class="stat-label">PRODUK</div>
-                </div>
-                <div class="stat-pill pixel-border">
-                    <div class="stat-value" id="totalStock">0</div>
-                    <div class="stat-label">STOK</div>
-                </div>
-                <div class="stat-pill pixel-border">
-                    <div class="stat-value yellow" id="totalOrders">0</div>
-                    <div class="stat-label">PESANAN</div>
-                </div>
-                <div class="stat-pill pixel-border">
-                    <div class="stat-value green" id="totalRevenue">Rp0</div>
-                    <div class="stat-label">OMZET</div>
-                </div>
-            </div>
+    <section id="overview" class="section active" aria-labelledby="overview-title">
+      <div class="panel intro"><span class="eyebrow">★ RUANG SELLER ★</span><h1 id="overview-title">Toko digital Anda,<br>semua dalam kendali.</h1><p class="subtle">Kelola produk, pantau stok, dan lihat penjualan dalam satu tempat.</p></div>
+      <div class="stats" aria-live="polite">
+        <div class="stat"><span class="stat-label">Produk</span><strong class="stat-value" id="totalProducts">—</strong></div>
+        <div class="stat"><span class="stat-label">Total stok</span><strong class="stat-value" id="totalStock">—</strong></div>
+        <div class="stat"><span class="stat-label">Pesanan</span><strong class="stat-value" id="totalOrders">—</strong></div>
+        <div class="stat"><span class="stat-label">Nilai pesanan</span><strong class="stat-value" id="totalRevenue">—</strong></div>
+      </div>
+      <p class="store-note">★ BERSAMA STORE ★<br>Nilai pesanan terbayar bukan saldo penarikan.</p>
+    </section>
 
-            <div id="statusToast" class="status-toast pixel-border"></div>
+    <section id="products" class="section" aria-labelledby="products-title">
+      <div class="section-heading"><div><h2 id="products-title">Produk saya</h2><p class="subtle">Perbarui stok atau hapus produk yang tidak lagi dijual.</p></div><span id="productCount" class="count"></span></div>
+      <form id="productSearch" class="product-tools" role="search"><input id="productQuery" type="search" maxlength="120" placeholder="Cari nama atau SKU" aria-label="Cari produk"><button class="button secondary" type="submit">Cari</button></form>
+      <div id="productList" class="products" aria-live="polite"><div class="loading">Memuat produk…</div></div>
+      <div class="pagination" aria-label="Halaman produk"><button id="previousPage" class="button secondary" type="button">Sebelumnya</button><span id="pageStatus">Halaman 1</span><button id="nextPage" class="button secondary" type="button">Berikutnya</button></div>
+    </section>
 
-            <div id="addForm" class="add-form-card pixel-border pixel-shadow">
-                <div class="form-header">
-                    <h2>★ PRODUK BARU ★</h2>
-                    <div class="form-close" onclick="toggleAddForm()">×</div>
-                </div>
-                <div class="field">
-                    <label>SKU</label>
-                    <input type="text" id="inputSku" placeholder="PROD01" maxlength="30">
-                </div>
-                <div class="field">
-                    <label>NAMA PRODUK</label>
-                    <input type="text" id="inputName" placeholder="Nama produk" maxlength="120">
-                </div>
-                <div class="field">
-                    <label>KATEGORI</label>
-                    <select id="inputCategory" style="width:100%;padding:10px;background:var(--cream);border:3px solid var(--black);color:var(--black);font-family:'VT323',monospace;font-size:20px;outline:none;">
-                        <option value="">Pilih kategori</option>
-                        <option value="apk_premium">📱 APK Premium</option>
-                        <option value="ai">🤖 AI Tools</option>
-                        <option value="games">🎮 Games</option>
-                        <option value="streaming">📺 Streaming</option>
-                        <option value="lainnya">📦 Lainnya</option>
-                    </select>
-                </div>
-                <div class="field-row">
-                    <div class="field">
-                        <label>HARGA (RP)</label>
-                        <input type="number" id="inputPrice" placeholder="50000" min="1" max="1000000000">
-                    </div>
-                    <div class="field">
-                        <label>STOK</label>
-                        <input type="number" id="inputStock" placeholder="10" min="0" max="1000000">
-                    </div>
-                </div>
-                <div class="field">
-                    <label>DESKRIPSI</label>
-                    <textarea id="inputDesc" placeholder="Deskripsi produk..." maxlength="1000"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button class="btn btn-cancel" onclick="toggleAddForm()">BATAL</button>
-                    <button class="btn btn-success" onclick="submitProduct()" id="submitBtn">SIMPAN</button>
-                </div>
-            </div>
+    <section id="add" class="section" aria-labelledby="add-title">
+      <div class="panel"><div class="section-heading"><div><h2 id="add-title">Tambah produk</h2><p class="subtle">Informasi produk akan tampil pada katalog toko.</p></div></div>
+        <form id="productForm" class="form-grid">
+          <label>SKU <input id="inputSku" required maxlength="30" pattern="[A-Za-z0-9_-]+" autocomplete="off" placeholder="PROD01"></label>
+          <label>Nama produk <input id="inputName" required maxlength="120" placeholder="Nama produk"></label>
+          <label>Kategori <select id="inputCategory" required><option value="">Pilih kategori</option><option>Game</option><option>Voucher</option><option>Pulsa</option><option>Digital</option><option>Lainnya</option></select></label>
+          <div class="two-up"><label>Harga <input id="inputPrice" type="number" required min="1" max="1000000000" inputmode="numeric" placeholder="50000"></label><label>Stok <input id="inputStock" type="number" required min="0" max="1000000" inputmode="numeric" placeholder="10"></label></div>
+          <label>Deskripsi <textarea id="inputDesc" maxlength="1000" placeholder="Deskripsi produk (opsional)"></textarea></label>
+          <div class="form-actions"><button class="button secondary" type="reset">Bersihkan</button><button class="button primary" type="submit" id="submitBtn">Simpan produk</button></div>
+        </form>
+      </div>
+    </section>
+  </main>
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#fefcd0'); tg.setBackgroundColor('#fefcd0'); }
+    const initData = tg?.initData || '';
+    const notice = document.getElementById('notice');
+    const list = document.getElementById('productList');
+    const number = new Intl.NumberFormat('id-ID');
+    const rupiah = value => 'Rp' + number.format(Number(value) || 0);
+    let productPage = 0;
+    let productQuery = '';
 
-            <div class="section-header">
-                <h2>★ PRODUK SAYA ★</h2>
-                <span class="product-count" id="productCount"></span>
-            </div>
+    function showNotice(message, type = 'error') {
+      notice.textContent = message;
+      notice.className = 'notice show ' + type;
+    }
 
-            <div class="product-list" id="productList"></div>
+    function clearNotice() {
+      notice.className = 'notice';
+      notice.textContent = '';
+    }
 
-            <div class="speech-bubble pixel-border" style="margin-top: 20px;">
-                ★ BERSAMA STORE ★<br>
-                Kelola toko Anda dengan mudah!
-            </div>
-        </div>
-    </div>
+    function setView(view) {
+      document.querySelectorAll('.section').forEach(section => {
+        section.classList.toggle('active', section.id === view);
+      });
+      document.querySelectorAll('.nav-button').forEach(button => {
+        if (button.dataset.view === view) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (view === 'products') loadProducts();
+    }
+    async function api(path, payload = {}) {
+      if (!initData) throw new Error('Buka halaman ini melalui aplikasi Telegram untuk melanjutkan.');
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, init_data: initData })
+      });
+      let data;
+      try { data = await response.json(); }
+      catch { throw new Error('Respons server tidak valid.'); }
+      if (!response.ok || !data.success) throw new Error(data.message || 'Permintaan tidak dapat diproses.');
+      return data;
+    }
+    function text(value) {
+      return document.createTextNode(value == null ? '' : String(value));
+    }
+    function productCard(product) {
+      const card = document.createElement('article'); card.className = 'product';
+      const head = document.createElement('div'); head.className = 'product-header';
+      const details = document.createElement('div');
+      const sku = document.createElement('p'); sku.className = 'sku'; sku.append(text(product.sku));
+      const name = document.createElement('h3'); name.append(text(product.name));
+      details.append(sku, name);
+      const price = document.createElement('strong'); price.className = 'price'; price.append(text(rupiah(product.price)));
+      head.append(details, price); card.append(head);
+      if (product.description) {
+        const description = document.createElement('p'); description.className = 'description'; description.append(text(product.description)); card.append(description);
+      }
+      const meta = document.createElement('p'); meta.className = 'meta'; meta.append(text(product.category ? 'Kategori: ' + product.category : '')); card.append(meta);
+      const actions = document.createElement('div'); actions.className = 'product-actions';
+      const stock = document.createElement('input'); stock.type = 'number'; stock.min = '0'; stock.max = '1000000'; stock.value = Number(product.stock) || 0; stock.inputMode = 'numeric'; stock.setAttribute('aria-label', 'Stok ' + product.name);
+      const update = document.createElement('button'); update.className = 'button secondary'; update.type = 'button'; update.textContent = 'Simpan stok'; update.addEventListener('click', () => updateStock(product.sku, stock.value, update));
+      const remove = document.createElement('button'); remove.className = 'button danger'; remove.type = 'button'; remove.textContent = 'Hapus'; remove.addEventListener('click', () => deleteProduct(product.sku, product.name));
+      actions.append(stock, update, remove); card.append(actions);
+      return card;
+    }
+    function clearStats() {
+      ['totalProducts', 'totalStock', 'totalOrders', 'totalRevenue'].forEach(id => {
+        document.getElementById(id).textContent = '—';
+      });
+    }
 
-    <script>
-        const tg = window.Telegram?.WebApp;
-        let userId = null;
+    async function loadStats() {
+      clearStats();
+      try {
+        const { stats } = await api('/api/stats');
+        document.getElementById('totalProducts').textContent = number.format(Number(stats.total_products) || 0);
+        document.getElementById('totalStock').textContent = number.format(Number(stats.total_stock) || 0);
+        document.getElementById('totalOrders').textContent = number.format(Number(stats.total_orders) || 0);
+        document.getElementById('totalRevenue').textContent = rupiah(stats.total_revenue);
+      } catch (error) {
+        showNotice(error.message);
+      }
+    }
 
-        if (tg) {
-            tg.ready();
-            tg.expand();
-            tg.setHeaderColor('#fefcd0');
-            tg.setBackgroundColor('#fefcd0');
-            userId = tg.initDataUnsafe?.user?.id;
+    function updatePagination(length) {
+      document.getElementById('pageStatus').textContent = 'Halaman ' + (productPage + 1);
+      document.getElementById('previousPage').disabled = productPage === 0;
+      document.getElementById('nextPage').disabled = length < 8;
+    }
+
+    async function loadProducts() {
+      const loading = document.createElement('div');
+      loading.className = 'loading';
+      loading.textContent = 'Memuat produk…';
+      list.replaceChildren(loading);
+      document.getElementById('previousPage').disabled = true;
+      document.getElementById('nextPage').disabled = true;
+
+      try {
+        const { products = [] } = await api('/api/products', { page: productPage, query: productQuery });
+        document.getElementById('productCount').textContent = products.length ? number.format(products.length) + ' produk di halaman ini' : '';
+        updatePagination(products.length);
+        if (!products.length) {
+          const message = productPage ? 'Tidak ada produk pada halaman ini. Gunakan tombol Sebelumnya untuk kembali.' : productQuery ? 'Produk yang dicari tidak ditemukan.' : 'Belum ada produk. Gunakan “Tambah produk” untuk membuat katalog pertama Anda.';
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = message;
+          list.replaceChildren(empty);
+          return;
         }
+        list.replaceChildren(...products.map(productCard));
+      } catch (error) {
+        document.getElementById('productCount').textContent = '';
+        document.getElementById('pageStatus').textContent = 'Produk tidak dimuat';
+        const state = document.createElement('div');
+        state.className = 'load-error';
+        state.textContent = error.message;
+        list.replaceChildren(state);
+      }
+    }
+    async function updateStock(sku, rawStock, button) {
+      if (String(rawStock).trim() === '') return showNotice('Stok wajib diisi.');
+      const stock = Number(rawStock);
+      if (!Number.isInteger(stock) || stock < 0 || stock > 1000000) {
+        return showNotice('Stok harus berupa angka antara 0 dan 1.000.000.');
+      }
+      button.disabled = true;
+      try {
+        const data = await api('/api/product/stock', { sku, stock });
+        showNotice(data.message || 'Stok diperbarui.', 'success');
+        loadStats();
+      } catch (error) {
+        showNotice(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    }
 
-        function showStatus(msg, type) {
-            const el = document.getElementById('statusToast');
-            el.textContent = msg;
-            el.className = 'status-toast pixel-border show ' + type;
-            clearTimeout(el._timer);
-            el._timer = setTimeout(() => el.className = 'status-toast pixel-border', 3000);
-        }
+    async function deleteProduct(sku, name) {
+      if (!window.confirm('Hapus produk “' + name + '”?')) return;
+      try {
+        const data = await api('/api/product/delete', { sku });
+        showNotice(data.message || 'Produk dihapus.', 'success');
+        loadProducts();
+        loadStats();
+      } catch (error) {
+        showNotice(error.message);
+      }
+    }
 
-        function rupiah(n) {
-            return 'Rp' + n.toLocaleString('id-ID');
-        }
+    document.getElementById('productForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const price = Number(document.getElementById('inputPrice').value);
+      const stock = Number(document.getElementById('inputStock').value);
+      if (!Number.isInteger(price) || price < 1 || !Number.isInteger(stock) || stock < 0) {
+        return showNotice('Periksa harga dan stok produk.');
+      }
+      const button = document.getElementById('submitBtn');
+      button.disabled = true;
+      clearNotice();
+      try {
+        const data = await api('/api/product/add', {
+          sku: document.getElementById('inputSku').value.trim(),
+          name: document.getElementById('inputName').value.trim(),
+          category: document.getElementById('inputCategory').value,
+          price,
+          stock,
+          description: document.getElementById('inputDesc').value.trim()
+        });
+        showNotice(data.message || 'Produk disimpan.', 'success');
+        form.reset();
+        productPage = 0;
+        productQuery = '';
+        document.getElementById('productQuery').value = '';
+        loadStats();
+        setView('products');
+      } catch (error) {
+        showNotice(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
 
-        async function api(path, body) {
-            const res = await fetch(path, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...body, user_id: userId })
-            });
-            return res.json();
-        }
-
-        async function loadStats() {
-            const data = await api('/api/stats', {});
-            if (data.success) {
-                const s = data.stats;
-                document.getElementById('totalProducts').textContent = s.total_products;
-                document.getElementById('totalStock').textContent = s.total_stock.toLocaleString('id-ID');
-                document.getElementById('totalOrders').textContent = s.total_orders;
-                document.getElementById('totalRevenue').textContent = rupiah(s.total_revenue);
-            }
-        }
-
-        async function loadProducts() {
-            const data = await api('/api/products', {});
-            const list = document.getElementById('productList');
-            const count = document.getElementById('productCount');
-
-            if (!data.success || !data.products.length) {
-                count.textContent = '';
-                list.innerHTML = `
-                    <div class="empty-state pixel-border">
-                        <div class="empty-icon">◆</div>
-                        <h3>BELUM ADA PRODUK</h3>
-                        <p>KLIK "+ PRODUK" UNTUK MENAMBAH<br>PRODUK PERTAMA ANDA.</p>
-                    </div>`;
-                return;
-            }
-
-            count.textContent = data.products.length + ' PRODUK';
-            list.innerHTML = data.products.map((p, i) => `
-                <div class="product-card pixel-border" style="animation-delay:${i * 0.06}s">
-                    <div class="card-top">
-                        <div>
-                            <div class="card-sku">${p.sku}</div>
-                            <h3>${p.name}</h3>
-                        </div>
-                        <div class="card-price">${rupiah(p.price)}</div>
-                    </div>
-                    ${p.description ? `<div class="card-desc">${p.description}</div>` : ''}
-                    <div class="card-actions">
-                        <input type="number" class="stock-input" value="${p.stock}" min="0" max="1000000"
-                            id="stock_${p.sku}">
-                        <button class="btn btn-success" onclick="updateStock('${p.sku}')">UPDATE</button>
-                        <button class="btn btn-danger" onclick="deleteProduct('${p.sku}')">HAPUS</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function toggleAddForm() {
-            const form = document.getElementById('addForm');
-            const trigger = document.getElementById('addTrigger');
-            const isActive = form.classList.toggle('active');
-            trigger.style.display = isActive ? 'none' : 'block';
-            if (!isActive) {
-                ['inputSku','inputName','inputPrice','inputStock','inputDesc'].forEach(id => {
-                    document.getElementById(id).value = '';
-                });
-            }
-        }
-
-        async function submitProduct() {
-            const sku = document.getElementById('inputSku').value.trim();
-            const name = document.getElementById('inputName').value.trim();
-            const category = document.getElementById('inputCategory').value;
-            const price = parseInt(document.getElementById('inputPrice').value);
-            const stock = parseInt(document.getElementById('inputStock').value);
-            const description = document.getElementById('inputDesc').value.trim();
-
-            if (!sku || !name || !category || !price || (stock !== 0 && !stock)) {
-                showStatus('MOHON ISI SEMUA FIELD.', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span>';
-
-            const data = await api('/api/product/add', { sku, name, category, price, stock, description });
-
-            btn.disabled = false;
-            btn.textContent = 'SIMPAN';
-
-            if (data.success) {
-                showStatus(data.message, 'success');
-                toggleAddForm();
-                loadProducts();
-                loadStats();
-            } else {
-                showStatus(data.message, 'error');
-            }
-        }
-
-        async function updateStock(sku) {
-            const stock = parseInt(document.getElementById('stock_' + sku).value);
-            if (isNaN(stock) || stock < 0) {
-                showStatus('STOK TIDAK VALID.', 'error');
-                return;
-            }
-            const data = await api('/api/product/stock', { sku, stock });
-            if (data.success) {
-                showStatus(data.message, 'success');
-                loadStats();
-            } else {
-                showStatus(data.message, 'error');
-            }
-        }
-
-        async function deleteProduct(sku) {
-            if (!confirm('HAPUS PRODUK ' + sku + '?')) return;
-            const data = await api('/api/product/delete', { sku });
-            if (data.success) {
-                showStatus(data.message, 'success');
-                loadProducts();
-                loadStats();
-            } else {
-                showStatus(data.message, 'error');
-            }
-        }
-
-        if (userId) {
-            loadStats();
-            loadProducts();
-        } else {
-            document.getElementById('productList').innerHTML =
-                '<div class="empty-state pixel-border"><div class="empty-icon">🔒</div><h3>BUKA DARI TELEGRAM</h3><p>DASHBOARD INI HANYA BISA DIAKSES MELALUI BOT TELEGRAM.</p></div>';
-        }
-    </script>
+    document.querySelectorAll('.nav-button').forEach(button => {
+      button.addEventListener('click', () => setView(button.dataset.view));
+    });
+    document.getElementById('productSearch').addEventListener('submit', event => {
+      event.preventDefault();
+      productQuery = document.getElementById('productQuery').value.trim();
+      productPage = 0;
+      loadProducts();
+    });
+    document.getElementById('previousPage').addEventListener('click', () => {
+      if (productPage) {
+        productPage--;
+        loadProducts();
+      }
+    });
+    document.getElementById('nextPage').addEventListener('click', () => {
+      productPage++;
+      loadProducts();
+    });
+    document.getElementById('closeButton').addEventListener('click', () => tg?.close());
+    if (!initData) {
+      showNotice('Buka halaman ini melalui aplikasi Telegram untuk melanjutkan.');
+      const locked = document.createElement('div');
+      locked.className = 'load-error';
+      locked.textContent = 'Dasbor hanya tersedia dari Telegram.';
+      list.replaceChildren(locked);
+    } else {
+      loadStats();
+      loadProducts();
+    }
+  </script>
 </body>
 </html>

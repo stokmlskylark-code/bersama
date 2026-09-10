@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY bot.py store.py pakasir.py web.py ./
+COPY bot.py store.py pakasir.py web.py telegram_auth.py startup.sh ./
 COPY templates/ ./templates/
 COPY public/ ./public/
 

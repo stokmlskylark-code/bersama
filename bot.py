@@ -105,6 +105,8 @@ class Config:
         webapp_url = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
         pg_dsn = os.getenv("PG_DSN", "dbname=postgres user=postgres password=postgres host=localhost port=5432")
         channel_username = os.getenv("CHANNEL_USERNAME", "").strip().lstrip("@")
+        if channel_username and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{4,31}", channel_username):
+            raise ValueError("CHANNEL_USERNAME harus username channel publik, bukan URL atau ID.")
         return cls(token, admins, shop_name, payment, support,
                    pg_dsn, ttl, provider, project, api_key, webapp_url, channel_username)
 
@@ -197,10 +199,28 @@ class ShopBot:
             result = self.api.call("getChatMember",
                                    chat_id=f"@{self.config.channel_username}",
                                    user_id=user_id)
+            if not isinstance(result, dict):
+                return None
             status = result.get("status", "")
-            return status in ("member", "administrator", "creator")
-        except TelegramError:
-            return True
+            return status in ("member", "administrator", "creator") or (
+                status == "restricted" and result.get("is_member") is True)
+        except TelegramError as exc:
+            LOG.warning("Pemeriksaan channel gagal (kode=%s). Pastikan bot admin channel.", exc.code)
+            return None
+
+    def start(self, actor):
+        member = self.is_channel_member(actor)
+        if member:
+            self.menu(actor)
+            return
+        text = ("Keanggotaan channel belum dapat diverifikasi. Coba lagi sebentar atau hubungi "
+                f"{self.config.support}." if member is None else
+                f"Selamat datang di {self.config.shop_name}!\n\n"
+                "Bergabung ke channel kami terlebih dahulu, lalu tekan Cek keanggotaan.")
+        self.send(actor, text, {"inline_keyboard": [
+            [{"text": "📢 Gabung channel", "url": f"https://t.me/{self.config.channel_username}"}],
+            [{"text": "✅ Cek keanggotaan", "callback_data": "check_join"}],
+        ]})
 
     def send(self, chat_id, text, markup=None):
         chunks = [text[i:i + 2000] for i in range(0, len(text), 2000)] or ["—"]
@@ -289,25 +309,20 @@ class ShopBot:
             f"Selamat datang di {self.config.shop_name}👋\n"
             f"\n"
             f"━━━━━━━━━━━━━━━━\n"
-            f"💰 Saldo    : Rp0\n"
             f"🏷️ Status   : {role_icon.get(role, '🟢')} {role_label.get(role, role)}\n"
-            f"📦 Order    : {stats['completed_orders']} Selesai\n"
+            f"📦 Order terbayar: {stats['completed_orders']}\n"
             f"💳 Belanja : {rupiah(stats['total_spending'])}\n"
             f"━━━━━━━━━━━━━━━━\n"
-            f"🎁 Jadi Seller & Reseller\n"
-            f"❓ Punya produk digital sendiri?\n"
-            f"💰 Jual produk Anda\n"
-            f"📈 Dapatkan lebih banyak pelanggan\n"
-            f"⚙️ Kelola harga & produk sendiri\n"
-            f"📊 Pantau penjualan real-time\n"
-            f"🏦 Withdraw keuntungan kapan saja\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"🚀 Bergabung sekarang dan mulai menghasilkan bersama {self.config.shop_name}"
+            f"Pilih katalog untuk belanja atau buka dashboard reseller untuk mengelola produk."
         )
         rows = [[("🛍 Katalog", "catalog:0"), ("📦 Pesanan saya", "orders:0")],
                 [("🎫 Buat Tiket", "create_ticket"), ("❓ Bantuan", "help")]]
         if actor in self.config.admins:
             rows.append([("⚙ Dashboard admin", "admin")])
+        if role == "reseller":
+            rows.append([("📊 Ringkasan reseller", "reseller")])
+        elif role == "customer":
+            rows.append([("🤝 Program reseller", "reseller")])
         markup = keyboard(*rows)
         if self.config.webapp_url:
             if user["role"] == "customer" and not user["reseller_request"]:
@@ -528,13 +543,6 @@ class ShopBot:
                       + ("Pengajuan Anda sedang ditinjau admin." if user["reseller_request"] else "Ajukan melalui /daftarreseller."),
                       keyboard([("Ajukan seller", "request_reseller")]) if user["role"] == "customer" and not user["reseller_request"] else None)
             return
-        if not admin and user["role"] == "reseller":
-            if self.config.webapp_url:
-                self.send(actor, "Buka Dashboard Seller untuk mengelola produk Anda:",
-                          keyboard([("📊 Dashboard Seller", "dashboard_web")]))
-            else:
-                self.send(actor, "Dashboard Seller belum tersedia.")
-            return
         stats = self.store.stats(actor, admin)
         paid_states = ("paid", "shipped", "completed")
         revenue = sum(stats.get(s, {}).get("total", 0) for s in paid_states)
@@ -554,8 +562,16 @@ class ShopBot:
                     [("⚠ Pembayaran terlambat", "payment_issues")],
                     [("Command admin", "help")]]
         else:
-            rows = [[("❓ Bantuan", "help")]]
-        self.send(actor, text, keyboard(*rows))
+            text += f"\nPenghematan harga reseller: {rupiah(saving)}"
+            rows = [[("🛍 Produk saya", "my_products:0"), ("📦 Pesanan saya", "orders:0")]]
+        rows.append([("🏠 Beranda", "home"), ("❓ Bantuan", "help")])
+        markup = keyboard(*rows)
+        if not admin and self.config.webapp_url:
+            markup["inline_keyboard"].insert(0, [{
+                "text": "📊 Dashboard penjualan & produk",
+                "web_app": {"url": self.config.webapp_url + "/dashboard"},
+            }])
+        self.send(actor, text, markup)
 
     def requests(self, actor):
         requests = self.store.reseller_requests(actor)
@@ -639,13 +655,7 @@ class ShopBot:
         command = parts[0].split("@")[0].lower() if parts else ""
         arg = parts[1].strip() if len(parts) > 1 else ""
         if command == "/start":
-            if not self.is_channel_member(actor):
-                self.send(actor, f"👋 Anda harus join channel kami terlebih dahulu.\n\n"
-                          f"👉 https://t.me/{self.config.channel_username}\n\n"
-                          f"Setelah join, klik /start lagi.",
-                          {"inline_keyboard": [[{"text": "✅ Cek Join", "callback_data": "check_join"}]]})
-                return
-            self.menu(actor)
+            self.start(actor)
         elif command == "/help" or command == "/bantuan":
             self.help(actor)
         elif command == "/id":
@@ -681,7 +691,7 @@ class ShopBot:
             self.cancel(actor, number(arg))
         elif command == "/bukti":
             self.show_proof(actor, number(arg))
-        elif command in ("/admin", "/laporan"):
+        elif command in ("/admin", "/laporan", "/reseller"):
             self.dashboard(actor, admin=command != "/reseller")
         elif command == "/daftarreseller":
             self.request_reseller(actor)
@@ -808,13 +818,10 @@ class ShopBot:
     def callback(self, actor, data):
         parts = data.split(":")
         action = parts[0]
-        if action == "check_join" and len(parts) == 1:
-            if self.is_channel_member(actor):
-                self.send(actor, "✅ Verified! Selamat datang.")
-                self.menu(actor)
-            else:
-                self.send(actor, f"❌ Anda belum join channel.\n\n👉 https://t.me/{self.config.channel_username}",
-                          {"inline_keyboard": [[{"text": "✅ Cek Join", "callback_data": "check_join"}]]})
+        if action in ("check_join", "home") and len(parts) == 1:
+            self.start(actor)
+        elif action == "reseller" and len(parts) == 1:
+            self.dashboard(actor)
         elif action == "create_ticket" and len(parts) == 1:
             self.send(actor, "Untuk membuat tiket, kirim:\n/tiket subjek | pesan Anda\n\nContoh:\n/tiket Pembayaran | Saya sudah transfer tapi belum masuk")
         elif action == "help" and len(parts) == 1:
@@ -822,18 +829,7 @@ class ShopBot:
         elif action in ("admin",) and len(parts) == 1:
             self.dashboard(actor, admin=True)
         elif action == "dashboard_web" and len(parts) == 1:
-            if self.config.webapp_url:
-                import json as _json
-                self.api.call("sendMessage", {
-                    "chat_id": actor,
-                    "text": "Membuka Dashboard Seller...",
-                    "reply_markup": _json.dumps({
-                        "inline_keyboard": [[{
-                            "text": "📊 Buka Dashboard",
-                            "web_app": {"url": self.config.webapp_url + "/dashboard"}
-                        }]]
-                    })
-                })
+            self.dashboard(actor)
         elif action == "request_reseller" and len(parts) == 1:
             self.request_reseller(actor)
         elif action == "requests" and len(parts) == 1:
@@ -953,7 +949,7 @@ def main():
         api.call("setMyCommands", commands=[
             {"command": command, "description": description} for command, description in [
                 ("start", "Menu utama"), ("katalog", "Lihat produk"), ("riwayat", "Pesanan saya"),
-                ("id", "ID Telegram saya"), ("help", "Panduan command")]])
+                ("reseller", "Dashboard reseller"), ("id", "ID Telegram saya"), ("help", "Panduan command")]])
         for admin in config.admins:
             try:
                 api.call("setMyCommands", scope={"type": "chat", "chat_id": admin}, commands=[

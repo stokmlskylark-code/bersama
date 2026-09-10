@@ -10,10 +10,13 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 
+from telegram_auth import authenticate_init_data
+
 LOG = logging.getLogger("webapp")
 PG_DSN = os.getenv("PG_DSN", "dbname=postgres user=postgres password=postgres host=localhost port=5432")
 HOST = os.getenv("WEB_HOST", "0.0.0.0")
 PORT = int(os.getenv("SERVER_PORT", os.getenv("WEB_PORT", "8080")))
+MAX_REQUEST_BODY = 64 * 1024
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -83,10 +86,11 @@ def get_my_products(user_id, page=0, query=""):
         db.close()
 
 
-def add_product(user_id, sku, name, price, stock, description):
+def add_product(user_id, sku, name, price, stock, description, category=""):
     db = get_db()
     try:
         sku = sku.upper().strip()
+        category = category.strip() if isinstance(category, str) else None
         if not (1 <= len(sku) <= 30 and sku.isascii() and
                 all(c.isalnum() or c in "_-" for c in sku)):
             return False, "SKU harus 1–30 karakter: huruf, angka, garis bawah atau tanda minus."
@@ -94,6 +98,8 @@ def add_product(user_id, sku, name, price, stock, description):
             return False, "Nama wajib diisi (maks. 120 karakter)."
         if len(description) > 1000:
             return False, "Deskripsi maks. 1000 karakter."
+        if category is None or len(category) > 100:
+            return False, "Kategori maks. 100 karakter."
         if not isinstance(price, int) or price <= 0 or price > 1_000_000_000:
             return False, "Harga harus 1–1.000.000.000."
         if not isinstance(stock, int) or stock < 0 or stock > 1_000_000:
@@ -103,12 +109,12 @@ def add_product(user_id, sku, name, price, stock, description):
             existing = cur.fetchone()
             if existing and existing[0] != user_id:
                 return False, "SKU sudah dimiliki seller lain."
-            cur.execute("""INSERT INTO products (sku, name, price, reseller_price, stock, description, seller_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (sku) DO UPDATE SET name=EXCLUDED.name, price=EXCLUDED.price,
+            cur.execute("""INSERT INTO products (sku, name, category, price, reseller_price, stock, description, seller_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (sku) DO UPDATE SET name=EXCLUDED.name, category=EXCLUDED.category, price=EXCLUDED.price,
                 reseller_price=EXCLUDED.price, stock=EXCLUDED.stock,
                 description=EXCLUDED.description, seller_id=EXCLUDED.seller_id""",
-                (sku, name, price, price, stock, description, user_id))
+                (sku, name, category, price, price, stock, description, user_id))
             _audit(db, user_id, "add_product_web", sku)
         db.commit()
         return True, f"Produk {sku} berhasil disimpan."
@@ -176,7 +182,7 @@ def get_reseller_stats(user_id):
                         (user_id,))
             products = cur.fetchone()
             cur.execute("""SELECT count(*) as cnt, coalesce(sum(total), 0) as revenue
-                FROM orders WHERE sku IN (SELECT sku FROM products WHERE seller_id=%s) AND status IN ('paid', 'completed')""",
+                FROM orders WHERE sku IN (SELECT sku FROM products WHERE seller_id=%s) AND status IN ('paid', 'shipped', 'completed')""",
                         (user_id,))
             orders = cur.fetchone()
         return {
@@ -203,12 +209,25 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _json_body(self):
-        length = int(self.headers.get("Content-Length", 0))
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            return None, "Ukuran permintaan tidak valid."
+        if length < 0 or length > MAX_REQUEST_BODY:
+            return None, "Ukuran permintaan terlalu besar."
         raw = self.rfile.read(length)
         try:
-            return json.loads(raw), None
+            data = json.loads(raw)
+            return (data, None) if isinstance(data, dict) else (None, "Invalid JSON")
         except (json.JSONDecodeError, ValueError):
             return None, "Invalid JSON"
+
+    def _authenticated_user_id(self, data):
+        user_id, err = authenticate_init_data(data.get("init_data"))
+        if err:
+            self._send(401, "application/json", json.dumps({"success": False, "message": err}))
+            return None
+        return user_id
 
     def do_GET(self):
         parsed = self.path.split("?")[0]
@@ -247,13 +266,12 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             self._send(400, "application/json", json.dumps({"success": False, "message": err}))
             return
-        user_id = data.get("user_id")
+        user_id = self._authenticated_user_id(data)
         shop_name = (data.get("shop_name") or "").strip()
         description = (data.get("description") or "").strip()
         alamat_lengkap = (data.get("alamat_lengkap") or "").strip()
         domisili = (data.get("domisili") or "").strip()
-        if not user_id or not isinstance(user_id, int):
-            self._send(400, "application/json", json.dumps({"success": False, "message": "user_id invalid"}))
+        if user_id is None:
             return
         if not shop_name or len(shop_name) > 50:
             self._send(400, "application/json", json.dumps({"success": False, "message": "Nama toko tidak valid"}))
@@ -275,9 +293,8 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             self._send(400, "application/json", json.dumps({"success": False, "message": err}))
             return
-        user_id = data.get("user_id")
-        if not user_id:
-            self._send(400, "application/json", json.dumps({"success": False, "message": "user_id required"}))
+        user_id = self._authenticated_user_id(data)
+        if user_id is None:
             return
         user, err = verify_user(user_id)
         if err:
@@ -293,9 +310,8 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             self._send(400, "application/json", json.dumps({"success": False, "message": err}))
             return
-        user_id = data.get("user_id")
-        if not user_id:
-            self._send(400, "application/json", json.dumps({"success": False, "message": "user_id required"}))
+        user_id = self._authenticated_user_id(data)
+        if user_id is None:
             return
         user, err = verify_user(user_id)
         if err:
@@ -309,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
         if not all([sku, name, isinstance(price, int), isinstance(stock, int)]):
             self._send(400, "application/json", json.dumps({"success": False, "message": "Field tidak lengkap"}))
             return
-        ok, msg = add_product(user_id, sku, name, price, stock, description)
+        ok, msg = add_product(user_id, sku, name, price, stock, description, data.get("category", ""))
         self._send(200, "application/json", json.dumps({"success": ok, "message": msg}))
 
     def _handle_update_stock(self):
@@ -317,9 +333,8 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             self._send(400, "application/json", json.dumps({"success": False, "message": err}))
             return
-        user_id = data.get("user_id")
-        if not user_id:
-            self._send(400, "application/json", json.dumps({"success": False, "message": "user_id required"}))
+        user_id = self._authenticated_user_id(data)
+        if user_id is None:
             return
         user, err = verify_user(user_id)
         if err:
@@ -338,9 +353,8 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             self._send(400, "application/json", json.dumps({"success": False, "message": err}))
             return
-        user_id = data.get("user_id")
-        if not user_id:
-            self._send(400, "application/json", json.dumps({"success": False, "message": "user_id required"}))
+        user_id = self._authenticated_user_id(data)
+        if user_id is None:
             return
         user, err = verify_user(user_id)
         if err:
@@ -358,9 +372,8 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             self._send(400, "application/json", json.dumps({"success": False, "message": err}))
             return
-        user_id = data.get("user_id")
-        if not user_id:
-            self._send(400, "application/json", json.dumps({"success": False, "message": "user_id required"}))
+        user_id = self._authenticated_user_id(data)
+        if user_id is None:
             return
         user, err = verify_user(user_id)
         if err:
