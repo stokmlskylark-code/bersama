@@ -1,0 +1,13 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    command: ["python", "bot.py"]
+    restart: unless-stopped
+  web:
+    build: .
+    env_file: .env
+    command: ["python", "web.py"]
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    restart: unless-stopped

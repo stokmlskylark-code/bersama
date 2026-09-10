@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+data
+__pycache__
+**/__pycache__
+*.sqlite3*
+*.db*
+*.log
+.hoplite
+tests
+build
+dist
+*.egg-info

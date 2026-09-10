@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard Reseller</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --cream: #fefcd0;
+            --pink: #c381b5;
+            --pink-dark: #9a5f8e;
+            --black: #1a1a2e;
+            --white: #ffffff;
+            --green: #4ade80;
+            --yellow: #fbbf24;
+            --red: #f87171;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'VT323', monospace;
+            background: var(--cream);
+            background-image:
+                linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+            background-size: 16px 16px;
+            color: var(--black);
+            min-height: 100vh;
+            -webkit-font-smoothing: none;
+            image-rendering: pixelated;
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 24px 16px 32px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .pixel-border {
+            border: 4px solid var(--black);
+            border-image-source: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M3 1h1v1h-1zM4 1h1v1h-1zM2 2h1v1h-1zM5 2h1v1h-1zM1 3h1v1h-1zM6 3h1v1h-1zM1 4h1v1h-1zM6 4h1v1h-1zM2 5h1v1h-1zM5 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1z' fill='%231a1a2e'/%3E%3C/svg%3E");
+            border-image-slice: 3;
+            border-image-repeat: repeat;
+        }
+
+        .pixel-shadow {
+            box-shadow: 6px 6px 0 var(--black);
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .top-bar h1 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            color: var(--black);
+        }
+
+        .add-trigger {
+            padding: 10px 16px;
+            background: var(--pink);
+            border: 3px solid var(--black);
+            color: var(--cream);
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 var(--black);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .add-trigger:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 var(--black);
+        }
+
+        .add-trigger:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .stat-pill {
+            background: var(--white);
+            padding: 16px 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 14px;
+            color: var(--black);
+            margin-bottom: 6px;
+        }
+
+        .stat-value.pink { color: var(--pink); }
+        .stat-value.green { color: #16a34a; }
+        .stat-value.yellow { color: #ca8a04; }
+
+        .stat-label {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 6px;
+            color: var(--black);
+            opacity: 0.6;
+            letter-spacing: 0.5px;
+        }
+
+        .status-toast {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .status-toast.show { display: block; }
+        .status-toast.success { background: #d4edda; color: #155724; border: 3px solid #155724; }
+        .status-toast.error { background: #f8d7da; color: #721c24; border: 3px solid #721c24; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .section-header h2 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            color: var(--black);
+        }
+
+        .product-count {
+            font-size: 14px;
+            color: var(--black);
+            opacity: 0.5;
+        }
+
+        .product-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .product-card {
+            background: var(--white);
+            padding: 16px;
+            position: relative;
+        }
+
+        .product-card::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: var(--pink);
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .card-sku {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 6px;
+            color: var(--black);
+            opacity: 0.5;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .card-top h3 {
+            font-size: 20px;
+            color: var(--black);
+            line-height: 1.3;
+        }
+
+        .card-price {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            color: #16a34a;
+            white-space: nowrap;
+            margin-left: 12px;
+        }
+
+        .card-desc {
+            font-size: 16px;
+            color: var(--black);
+            opacity: 0.7;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .card-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-top: 12px;
+            border-top: 3px solid var(--black);
+        }
+
+        .stock-input {
+            flex: 1;
+            padding: 10px;
+            background: var(--cream);
+            border: 3px solid var(--black);
+            color: var(--black);
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            text-align: center;
+            outline: none;
+        }
+
+        .stock-input:focus {
+            box-shadow: 3px 3px 0 var(--pink);
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border: 3px solid var(--black);
+            font-family: 'Press Start 2P', monospace;
+            font-size: 6px;
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--black);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .btn:hover {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0 var(--black);
+        }
+
+        .btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .btn-success {
+            background: var(--green);
+            color: var(--black);
+        }
+
+        .btn-danger {
+            background: var(--red);
+            color: var(--black);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            background: var(--white);
+        }
+
+        .empty-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            color: var(--black);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: var(--black);
+            opacity: 0.6;
+            line-height: 1.6;
+        }
+
+        .add-form-card {
+            background: var(--white);
+            padding: 20px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .add-form-card.active { display: block; }
+
+        .form-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .form-header h2 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            color: var(--black);
+        }
+
+        .form-close {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--cream);
+            border: 3px solid var(--black);
+            color: var(--black);
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            cursor: pointer;
+        }
+
+        .form-close:hover {
+            background: var(--pink);
+            color: var(--cream);
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            display: block;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 6px;
+            color: var(--black);
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 10px;
+            background: var(--cream);
+            border: 3px solid var(--black);
+            color: var(--black);
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            outline: none;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            box-shadow: 3px 3px 0 var(--pink);
+        }
+
+        .field input::placeholder,
+        .field textarea::placeholder {
+            color: var(--black);
+            opacity: 0.3;
+        }
+
+        .field textarea {
+            resize: vertical;
+            min-height: 60px;
+            line-height: 2;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .form-actions .btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 7px;
+        }
+
+        .btn-cancel {
+            background: var(--cream);
+            color: var(--black);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 0;
+            border-top-color: var(--cream);
+            animation: spin 0.8s steps(8) infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .speech-bubble {
+            position: relative;
+            background: var(--cream);
+            border: 3px solid var(--black);
+            padding: 10px 14px;
+            margin-top: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 16px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid var(--black);
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="container">
+            <div class="top-bar">
+                <h1>★ DASHBOARD ★</h1>
+                <button class="add-trigger" onclick="toggleAddForm()" id="addTrigger">
+                    + PRODUK
+                </button>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-pill pixel-border">
+                    <div class="stat-value pink" id="totalProducts">0</div>
+                    <div class="stat-label">PRODUK</div>
+                </div>
+                <div class="stat-pill pixel-border">
+                    <div class="stat-value" id="totalStock">0</div>
+                    <div class="stat-label">STOK</div>
+                </div>
+                <div class="stat-pill pixel-border">
+                    <div class="stat-value yellow" id="totalOrders">0</div>
+                    <div class="stat-label">PESANAN</div>
+                </div>
+                <div class="stat-pill pixel-border">
+                    <div class="stat-value green" id="totalRevenue">Rp0</div>
+                    <div class="stat-label">OMZET</div>
+                </div>
+            </div>
+
+            <div id="statusToast" class="status-toast pixel-border"></div>
+
+            <div id="addForm" class="add-form-card pixel-border pixel-shadow">
+                <div class="form-header">
+                    <h2>★ PRODUK BARU ★</h2>
+                    <div class="form-close" onclick="toggleAddForm()">×</div>
+                </div>
+                <div class="field">
+                    <label>SKU</label>
+                    <input type="text" id="inputSku" placeholder="PROD01" maxlength="30">
+                </div>
+                <div class="field">
+                    <label>NAMA PRODUK</label>
+                    <input type="text" id="inputName" placeholder="Nama produk" maxlength="120">
+                </div>
+                <div class="field">
+                    <label>KATEGORI</label>
+                    <select id="inputCategory" style="width:100%;padding:10px;background:var(--cream);border:3px solid var(--black);color:var(--black);font-family:'VT323',monospace;font-size:20px;outline:none;">
+                        <option value="">Pilih kategori</option>
+                        <option value="apk_premium">📱 APK Premium</option>
+                        <option value="ai">🤖 AI Tools</option>
+                        <option value="games">🎮 Games</option>
+                        <option value="streaming">📺 Streaming</option>
+                        <option value="lainnya">📦 Lainnya</option>
+                    </select>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label>HARGA (RP)</label>
+                        <input type="number" id="inputPrice" placeholder="50000" min="1" max="1000000000">
+                    </div>
+                    <div class="field">
+                        <label>STOK</label>
+                        <input type="number" id="inputStock" placeholder="10" min="0" max="1000000">
+                    </div>
+                </div>
+                <div class="field">
+                    <label>DESKRIPSI</label>
+                    <textarea id="inputDesc" placeholder="Deskripsi produk..." maxlength="1000"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-cancel" onclick="toggleAddForm()">BATAL</button>
+                    <button class="btn btn-success" onclick="submitProduct()" id="submitBtn">SIMPAN</button>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h2>★ PRODUK SAYA ★</h2>
+                <span class="product-count" id="productCount"></span>
+            </div>
+
+            <div class="product-list" id="productList"></div>
+
+            <div class="speech-bubble pixel-border" style="margin-top: 20px;">
+                ★ BERSAMA STORE ★<br>
+                Kelola toko Anda dengan mudah!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        let userId = null;
+
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            tg.setHeaderColor('#fefcd0');
+            tg.setBackgroundColor('#fefcd0');
+            userId = tg.initDataUnsafe?.user?.id;
+        }
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusToast');
+            el.textContent = msg;
+            el.className = 'status-toast pixel-border show ' + type;
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => el.className = 'status-toast pixel-border', 3000);
+        }
+
+        function rupiah(n) {
+            return 'Rp' + n.toLocaleString('id-ID');
+        }
+
+        async function api(path, body) {
+            const res = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...body, user_id: userId })
+            });
+            return res.json();
+        }
+
+        async function loadStats() {
+            const data = await api('/api/stats', {});
+            if (data.success) {
+                const s = data.stats;
+                document.getElementById('totalProducts').textContent = s.total_products;
+                document.getElementById('totalStock').textContent = s.total_stock.toLocaleString('id-ID');
+                document.getElementById('totalOrders').textContent = s.total_orders;
+                document.getElementById('totalRevenue').textContent = rupiah(s.total_revenue);
+            }
+        }
+
+        async function loadProducts() {
+            const data = await api('/api/products', {});
+            const list = document.getElementById('productList');
+            const count = document.getElementById('productCount');
+
+            if (!data.success || !data.products.length) {
+                count.textContent = '';
+                list.innerHTML = `
+                    <div class="empty-state pixel-border">
+                        <div class="empty-icon">◆</div>
+                        <h3>BELUM ADA PRODUK</h3>
+                        <p>KLIK "+ PRODUK" UNTUK MENAMBAH<br>PRODUK PERTAMA ANDA.</p>
+                    </div>`;
+                return;
+            }
+
+            count.textContent = data.products.length + ' PRODUK';
+            list.innerHTML = data.products.map((p, i) => `
+                <div class="product-card pixel-border" style="animation-delay:${i * 0.06}s">
+                    <div class="card-top">
+                        <div>
+                            <div class="card-sku">${p.sku}</div>
+                            <h3>${p.name}</h3>
+                        </div>
+                        <div class="card-price">${rupiah(p.price)}</div>
+                    </div>
+                    ${p.description ? `<div class="card-desc">${p.description}</div>` : ''}
+                    <div class="card-actions">
+                        <input type="number" class="stock-input" value="${p.stock}" min="0" max="1000000"
+                            id="stock_${p.sku}">
+                        <button class="btn btn-success" onclick="updateStock('${p.sku}')">UPDATE</button>
+                        <button class="btn btn-danger" onclick="deleteProduct('${p.sku}')">HAPUS</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleAddForm() {
+            const form = document.getElementById('addForm');
+            const trigger = document.getElementById('addTrigger');
+            const isActive = form.classList.toggle('active');
+            trigger.style.display = isActive ? 'none' : 'block';
+            if (!isActive) {
+                ['inputSku','inputName','inputPrice','inputStock','inputDesc'].forEach(id => {
+                    document.getElementById(id).value = '';
+                });
+            }
+        }
+
+        async function submitProduct() {
+            const sku = document.getElementById('inputSku').value.trim();
+            const name = document.getElementById('inputName').value.trim();
+            const category = document.getElementById('inputCategory').value;
+            const price = parseInt(document.getElementById('inputPrice').value);
+            const stock = parseInt(document.getElementById('inputStock').value);
+            const description = document.getElementById('inputDesc').value.trim();
+
+            if (!sku || !name || !category || !price || (stock !== 0 && !stock)) {
+                showStatus('MOHON ISI SEMUA FIELD.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+
+            const data = await api('/api/product/add', { sku, name, category, price, stock, description });
+
+            btn.disabled = false;
+            btn.textContent = 'SIMPAN';
+
+            if (data.success) {
+                showStatus(data.message, 'success');
+                toggleAddForm();
+                loadProducts();
+                loadStats();
+            } else {
+                showStatus(data.message, 'error');
+            }
+        }
+
+        async function updateStock(sku) {
+            const stock = parseInt(document.getElementById('stock_' + sku).value);
+            if (isNaN(stock) || stock < 0) {
+                showStatus('STOK TIDAK VALID.', 'error');
+                return;
+            }
+            const data = await api('/api/product/stock', { sku, stock });
+            if (data.success) {
+                showStatus(data.message, 'success');
+                loadStats();
+            } else {
+                showStatus(data.message, 'error');
+            }
+        }
+
+        async function deleteProduct(sku) {
+            if (!confirm('HAPUS PRODUK ' + sku + '?')) return;
+            const data = await api('/api/product/delete', { sku });
+            if (data.success) {
+                showStatus(data.message, 'success');
+                loadProducts();
+                loadStats();
+            } else {
+                showStatus(data.message, 'error');
+            }
+        }
+
+        if (userId) {
+            loadStats();
+            loadProducts();
+        } else {
+            document.getElementById('productList').innerHTML =
+                '<div class="empty-state pixel-border"><div class="empty-icon">🔒</div><h3>BUKA DARI TELEGRAM</h3><p>DASHBOARD INI HANYA BISA DIAKSES MELALUI BOT TELEGRAM.</p></div>';
+        }
+    </script>
+</body>
+</html>
