@@ -1,6 +1,37 @@
 # Bot toko Telegram + Pakasir
 
-Bot jual-beli **Python 3.10+ / SQLite** dengan dashboard admin dan reseller di chat Telegram. Tanpa library runtime tambahan. Pembayaran default memakai **checkout QRIS resmi Pakasir** dan verifikasi status melalui API; tidak perlu domain atau server webhook.
+## Konfigurasi saat ini: channel & dashboard reseller
+
+Kode saat ini memakai **PostgreSQL** melalui `PG_DSN`, bukan SQLite. Instal dependency
+dengan `python3 -m pip install -r requirements.txt` di virtual environment dan siapkan
+database kosong menggunakan `psql "$PG_DSN" -f schema.sql`. Bagian panduan SQLite di
+bawah merupakan panduan lama; jangan gunakan instruksi backup SQLite untuk PostgreSQL.
+
+- **Cek channel:** isi `CHANNEL_USERNAME=nama_channel` (channel publik, dengan/tanpa `@`)
+  dan jadikan bot administrator channel. `/start` memanggil `getChatMember` secara otomatis.
+  Pengguna yang belum bergabung mendapatkan tombol **Gabung channel** dan **Cek keanggotaan**.
+  Tombol cek memeriksa ulang ke Telegram; kegagalan API tidak meloloskan pengguna dan
+  ditampilkan sebagai kegagalan verifikasi, bukan klaim bahwa pengguna belum bergabung.
+  Kosongkan variabel untuk menonaktifkan syarat ini. Pemeriksaan berlaku pada `/start`,
+  tombol cek, dan Beranda; bukan pembatas global untuk command transaksi yang sudah berjalan.
+- **Dashboard chat:** `/reseller` menampilkan status pesanan belanja, total belanja
+  terkonfirmasi, penghematan reseller, serta navigasi ke produk, pesanan, dan Beranda.
+- **Dashboard web:** jalankan `python3 web.py` dengan environment yang sudah diisi,
+  lalu atur `WEBAPP_URL` ke URL HTTPS server tersebut. `/dashboard` menyediakan ringkasan
+  produk/stok/penjualan dan tab pengelolaan produk. Halaman `/` adalah formulir pengajuan
+  reseller. Persetujuan tetap dilakukan admin di bot.
+- **Identitas Mini App:** bot dan web/Vercel harus menggunakan `TELEGRAM_BOT_TOKEN` yang sama.
+  Request API membawa `Telegram.WebApp.initData` yang diverifikasi server; `user_id` dari
+  URL/body saja tidak memberikan akses. Buka melalui tombol Mini App di chat privat bot,
+  bukan browser biasa. Jika sesi kedaluwarsa, tutup dan buka kembali Mini App.
+- Omzet dashboard merupakan nilai produk pesanan terbayar, bukan saldo yang dapat ditarik,
+  laba bersih, atau pembukuan refund. Belum ada fitur withdraw.
+
+**Keamanan:** `.env.example` hanya untuk placeholder. Jika token asli pernah tersimpan di
+Git, mengganti file tidak menghapus riwayat: cabut/rotasi token melalui BotFather dan
+perbarui environment bot serta web bersama-sama.
+
+Bot jual-beli **Python 3.10+ / PostgreSQL** dengan dashboard admin dan reseller di chat Telegram serta Mini App reseller. Pembayaran default memakai **checkout QRIS resmi Pakasir** dan verifikasi status melalui API; bot polling tidak memerlukan server webhook.
 
 ## Fitur
 

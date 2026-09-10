@@ -6,8 +6,11 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 
+from telegram_auth import authenticate_init_data
+
 PG_DSN = os.getenv("PG_DSN")
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
+MAX_REQUEST_BODY = 64 * 1024
 
 
 def get_db():
@@ -78,6 +81,7 @@ def add_product(user_id, sku, name, price, stock, description, category=""):
     db = get_db()
     try:
         sku = sku.upper().strip()
+        category = category.strip() if isinstance(category, str) else None
         if not (1 <= len(sku) <= 30 and sku.isascii() and
                 all(c.isalnum() or c in "_-" for c in sku)):
             return False, "SKU harus 1–30 karakter: huruf, angka, garis bawah atau tanda minus."
@@ -85,6 +89,8 @@ def add_product(user_id, sku, name, price, stock, description, category=""):
             return False, "Nama wajib diisi (maks. 120 karakter)."
         if len(description) > 1000:
             return False, "Deskripsi maks. 1000 karakter."
+        if category is None or len(category) > 100:
+            return False, "Kategori maks. 100 karakter."
         if not isinstance(price, int) or price <= 0 or price > 1_000_000_000:
             return False, "Harga harus 1–1.000.000.000."
         if not isinstance(stock, int) or stock < 0 or stock > 1_000_000:
@@ -164,7 +170,7 @@ def get_reseller_stats(user_id):
                         (user_id,))
             products = cur.fetchone()
             cur.execute("""SELECT count(*) as cnt, coalesce(sum(total), 0) as revenue
-                FROM orders WHERE sku IN (SELECT sku FROM products WHERE seller_id=%s) AND status IN ('paid', 'completed')""",
+                FROM orders WHERE sku IN (SELECT sku FROM products WHERE seller_id=%s) AND status IN ('paid', 'shipped', 'completed')""",
                         (user_id,))
             orders = cur.fetchone()
         return {
@@ -176,6 +182,12 @@ def get_reseller_stats(user_id):
     finally:
         db.close()
 
+
+def _json_response(start_response, status, payload):
+    body = json.dumps(payload).encode()
+    start_response(f"{status} {'OK' if status == 200 else 'BAD REQUEST' if status == 400 else 'UNAUTHORIZED'}", [
+        ("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+    return [body]
 
 def application(environ, start_response):
     method = environ.get("REQUEST_METHOD", "GET")
@@ -200,102 +212,62 @@ def application(environ, start_response):
         return [b"Not Found"]
 
     if method == "POST":
-        length = int(environ.get("CONTENT_LENGTH", 0))
+        try:
+            length = int(environ.get("CONTENT_LENGTH", 0))
+        except (TypeError, ValueError):
+            return _json_response(start_response, 400, {"success": False, "message": "Ukuran permintaan tidak valid."})
+        if length < 0 or length > MAX_REQUEST_BODY:
+            return _json_response(start_response, 400, {"success": False, "message": "Ukuran permintaan terlalu besar."})
         raw = environ["wsgi.input"].read(length)
         try:
             data = json.loads(raw) if raw else {}
         except (json.JSONDecodeError, ValueError):
-            body = json.dumps({"success": False, "message": "Invalid JSON"}).encode()
-            start_response("400 BAD REQUEST", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
-            return [body]
-
-        handlers = {
-            "/api/register": lambda d: (True, "") if not all([d.get("user_id"), isinstance(d.get("user_id"), int),
-                (d.get("shop_name") or "").strip(), (d.get("description") or "").strip()]) else None,
-        }
+            return _json_response(start_response, 400, {"success": False, "message": "Invalid JSON"})
+        if not isinstance(data, dict):
+            return _json_response(start_response, 400, {"success": False, "message": "Invalid JSON"})
+        if path not in {"/api/register", "/api/products", "/api/product/add", "/api/product/stock", "/api/product/delete", "/api/stats"}:
+            start_response("404 NOT FOUND", [("Content-Type", "text/plain")])
+            return [b"Not Found"]
+        user_id, auth_error = authenticate_init_data(data.get("init_data"))
+        if auth_error:
+            return _json_response(start_response, 401, {"success": False, "message": auth_error})
 
         if path == "/api/register":
-            user_id = data.get("user_id")
             shop_name = (data.get("shop_name") or "").strip()
             description = (data.get("description") or "").strip()
             alamat_lengkap = (data.get("alamat_lengkap") or "").strip()
             domisili = (data.get("domisili") or "").strip()
-            if not user_id or not isinstance(user_id, int) or not shop_name or not description:
-                resp = {"success": False, "message": "Field tidak lengkap"}
-            elif not alamat_lengkap or not domisili:
-                resp = {"success": False, "message": "Alamat dan domisili wajib diisi"}
+            if not shop_name or len(shop_name) > 50:
+                resp = {"success": False, "message": "Nama toko tidak valid"}
+            elif not description or len(description) > 200:
+                resp = {"success": False, "message": "Deskripsi tidak valid"}
+            elif not alamat_lengkap or len(alamat_lengkap) > 500:
+                resp = {"success": False, "message": "Alamat tidak valid"}
+            elif not domisili or len(domisili) > 100:
+                resp = {"success": False, "message": "Domisili tidak valid"}
             else:
                 ok, msg = register_reseller(user_id, shop_name, description, alamat_lengkap, domisili)
                 resp = {"success": ok, "message": msg}
-
-        elif path == "/api/products":
-            user_id = data.get("user_id")
-            if not user_id:
-                resp = {"success": False, "message": "user_id required"}
-            else:
-                user, err = verify_user(user_id)
-                if err:
-                    resp = {"success": False, "message": err}
-                else:
-                    products = get_my_products(user_id, data.get("page", 0), data.get("query", ""))
-                    resp = {"success": True, "products": products}
-
-        elif path == "/api/product/add":
-            user_id = data.get("user_id")
-            if not user_id:
-                resp = {"success": False, "message": "user_id required"}
-            else:
-                user, err = verify_user(user_id)
-                if err:
-                    resp = {"success": False, "message": err}
-                else:
-                    ok, msg = add_product(user_id, (data.get("sku") or "").strip(),
-                        (data.get("name") or "").strip(), data.get("price"), data.get("stock"),
-                        (data.get("description") or "").strip(), (data.get("category") or "").strip())
-                    resp = {"success": ok, "message": msg}
-
-        elif path == "/api/product/stock":
-            user_id = data.get("user_id")
-            if not user_id:
-                resp = {"success": False, "message": "user_id required"}
-            else:
-                user, err = verify_user(user_id)
-                if err:
-                    resp = {"success": False, "message": err}
-                else:
-                    ok, msg = update_stock(user_id, (data.get("sku") or "").strip(), data.get("stock"))
-                    resp = {"success": ok, "message": msg}
-
-        elif path == "/api/product/delete":
-            user_id = data.get("user_id")
-            if not user_id:
-                resp = {"success": False, "message": "user_id required"}
-            else:
-                user, err = verify_user(user_id)
-                if err:
-                    resp = {"success": False, "message": err}
-                else:
-                    ok, msg = delete_product(user_id, (data.get("sku") or "").strip())
-                    resp = {"success": ok, "message": msg}
-
-        elif path == "/api/stats":
-            user_id = data.get("user_id")
-            if not user_id:
-                resp = {"success": False, "message": "user_id required"}
-            else:
-                user, err = verify_user(user_id)
-                if err:
-                    resp = {"success": False, "message": err}
-                else:
-                    resp = {"success": True, "stats": get_reseller_stats(user_id)}
-
         else:
-            start_response("404 NOT FOUND", [("Content-Type", "text/plain")])
-            return [b"Not Found"]
-
-        body = json.dumps(resp).encode()
-        start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
-        return [body]
+            user, err = verify_user(user_id)
+            if err:
+                resp = {"success": False, "message": err}
+            elif path == "/api/products":
+                resp = {"success": True, "products": get_my_products(user_id, data.get("page", 0), data.get("query", ""))}
+            elif path == "/api/product/add":
+                ok, msg = add_product(user_id, (data.get("sku") or "").strip(),
+                    (data.get("name") or "").strip(), data.get("price"), data.get("stock"),
+                    (data.get("description") or "").strip(), data.get("category", ""))
+                resp = {"success": ok, "message": msg}
+            elif path == "/api/product/stock":
+                ok, msg = update_stock(user_id, (data.get("sku") or "").strip(), data.get("stock"))
+                resp = {"success": ok, "message": msg}
+            elif path == "/api/product/delete":
+                ok, msg = delete_product(user_id, (data.get("sku") or "").strip())
+                resp = {"success": ok, "message": msg}
+            else:
+                resp = {"success": True, "stats": get_reseller_stats(user_id)}
+        return _json_response(start_response, 200, resp)
 
     start_response("405 METHOD NOT ALLOWED", [("Content-Type", "text/plain")])
     return [b"Method Not Allowed"]

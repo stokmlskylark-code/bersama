@@ -1,453 +1,81 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Daftar Reseller</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --cream: #fefcd0;
-            --pink: #c381b5;
-            --pink-dark: #9a5f8e;
-            --black: #1a1a2e;
-            --white: #ffffff;
-            --grid: #e8e6d0;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'VT323', monospace;
-            background: var(--cream);
-            background-image:
-                linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
-            background-size: 16px 16px;
-            color: var(--black);
-            min-height: 100vh;
-            -webkit-font-smoothing: none;
-            image-rendering: pixelated;
-        }
-
-        .page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 48px 16px 32px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 380px;
-        }
-
-        .pixel-border {
-            border: 4px solid var(--black);
-            border-image-source: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M3 1h1v1h-1zM4 1h1v1h-1zM2 2h1v1h-1zM5 2h1v1h-1zM1 3h1v1h-1zM6 3h1v1h-1zM1 4h1v1h-1zM6 4h1v1h-1zM2 5h1v1h-1zM5 5h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1z' fill='%231a1a2e'/%3E%3C/svg%3E");
-            border-image-slice: 3;
-            border-image-repeat: repeat;
-        }
-
-        .pixel-shadow {
-            box-shadow: 6px 6px 0 var(--black);
-        }
-
-        .hero {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .hero-badge {
-            display: inline-block;
-            padding: 8px 16px;
-            background: var(--pink);
-            color: var(--cream);
-            font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
-            letter-spacing: 1px;
-            margin-bottom: 20px;
-            transform: rotate(-2deg);
-        }
-
-        .hero h1 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 16px;
-            line-height: 1.8;
-            margin-bottom: 12px;
-            color: var(--black);
-        }
-
-        .hero p {
-            font-size: 18px;
-            line-height: 1.4;
-            color: var(--black);
-            opacity: 0.8;
-        }
-
-        .benefits {
-            margin-bottom: 24px;
-        }
-
-        .benefit-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 14px;
-            background: var(--white);
-            margin-bottom: 8px;
-        }
-
-        .benefit-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-            image-rendering: pixelated;
-        }
-
-        .benefit-content h3 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
-            color: var(--black);
-            margin-bottom: 4px;
-            line-height: 1.6;
-        }
-
-        .benefit-content p {
-            font-size: 16px;
-            color: var(--black);
-            opacity: 0.7;
-            line-height: 1.4;
-        }
-
-        .form-card {
-            background: var(--white);
-            padding: 24px;
-            margin-bottom: 16px;
-        }
-
-        .form-card h2 {
-            font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            margin-bottom: 20px;
-            color: var(--black);
-            text-align: center;
-        }
-
-        .field {
-            margin-bottom: 16px;
-        }
-
-        .field label {
-            display: block;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 7px;
-            color: var(--black);
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
-
-        .field input,
-        .field textarea {
-            width: 100%;
-            padding: 12px;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            color: var(--black);
-            font-family: 'VT323', monospace;
-            font-size: 20px;
-            outline: none;
-            transition: box-shadow 0.15s ease;
-        }
-
-        .field input:focus,
-        .field textarea:focus {
-            box-shadow: 4px 4px 0 var(--pink);
-        }
-
-        .field input::placeholder,
-        .field textarea::placeholder {
-            color: var(--black);
-            opacity: 0.4;
-        }
-
-        .field textarea {
-            resize: vertical;
-            min-height: 80px;
-            line-height: 2;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 16px;
-            background: var(--pink);
-            border: 4px solid var(--black);
-            color: var(--cream);
-            font-family: 'Press Start 2P', monospace;
-            font-size: 10px;
-            cursor: pointer;
-            box-shadow: 6px 6px 0 var(--black);
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-            position: relative;
-        }
-
-        .submit-btn::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 50%);
-            pointer-events: none;
-        }
-
-        .submit-btn:hover {
-            transform: translate(2px, 2px);
-            box-shadow: 4px 4px 0 var(--black);
-        }
-
-        .submit-btn:active {
-            transform: translate(6px, 6px);
-            box-shadow: 0 0 0 var(--black);
-        }
-
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: 6px 6px 0 var(--black);
-        }
-
-        .status {
-            text-align: center;
-            padding: 12px;
-            margin-top: 16px;
-            font-size: 14px;
-            line-height: 1.6;
-            display: none;
-        }
-
-        .status.success {
-            display: block;
-            background: #d4edda;
-            color: #155724;
-            border: 3px solid #155724;
-        }
-
-        .status.error {
-            display: block;
-            background: #f8d7da;
-            color: #721c24;
-            border: 3px solid #721c24;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 0;
-            border-top-color: var(--cream);
-            animation: spin 0.8s steps(8) infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .footer-note {
-            text-align: center;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 7px;
-            color: var(--black);
-            opacity: 0.5;
-            line-height: 2;
-        }
-
-        .speech-bubble {
-            position: relative;
-            background: var(--cream);
-            border: 3px solid var(--black);
-            padding: 12px 16px;
-            margin-top: 16px;
-            font-size: 14px;
-            line-height: 1.6;
-            text-align: center;
-        }
-
-        .speech-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 20px;
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 8px solid var(--black);
-        }
-
-        .sparkle {
-            position: absolute;
-            font-size: 24px;
-            opacity: 0.6;
-            animation: sparkle 2s ease-in-out infinite;
-        }
-
-        @keyframes sparkle {
-            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.6; }
-            50% { transform: scale(1.2) rotate(15deg); opacity: 1; }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daftar Reseller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { --bg:#fefcd0; --surface:#fff; --ink:#1a1a2e; --muted:#555466; --line:#1a1a2e; --brand:#c381b5; --brand-dark:#9a5f8e; --success:#13754c; --danger:#a21c39; --pixel:'Press Start 2P',monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; background:var(--bg); background-image:linear-gradient(#1a1a2e09 1px,transparent 1px),linear-gradient(90deg,#1a1a2e09 1px,transparent 1px); background-size:16px 16px; color:var(--ink); font:22px/1.4 'VT323',monospace; }
+    button, input, textarea { font:inherit; } button { cursor:pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline:3px solid var(--brand-dark); outline-offset:4px; }
+    .shell { width:min(100%,460px); min-height:100vh; margin:auto; padding:24px 20px calc(32px + env(safe-area-inset-bottom)); }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:36px; }
+    .brand { font:10px/1.8 var(--pixel); }.brand small { display:block; color:var(--muted); font:18px/1.5 'VT323',monospace; }
+    .back { min-height:44px; padding:8px 10px; background:var(--surface); border:2px solid var(--line); color:var(--ink); box-shadow:3px 3px 0 var(--ink); font-size:18px; }
+    .hero { text-align:center; margin-bottom:32px; }.eyebrow { display:inline-block; background:var(--brand); padding:10px 12px; margin-bottom:20px; font:8px/1.8 var(--pixel); transform:rotate(-2deg); }
+    .hero h1 { font:16px/1.8 var(--pixel); text-transform:uppercase; margin:0 0 18px; }.hero p { margin:0; }
+    .features { display:grid; gap:12px; margin-bottom:28px; }.feature { display:flex; gap:14px; padding:18px; background:var(--surface); border:2px solid var(--line); }.feature-icon { flex-shrink:0; display:grid; place-items:center; width:36px; height:36px; background:var(--bg); border:3px solid var(--line); }.feature p { margin:8px 0 0; color:var(--muted); font-size:20px; }
+    .card { padding:24px; border:2px solid var(--line); background:var(--surface); box-shadow:6px 6px 0 var(--ink); }
+    h2 { margin:0 0 10px; font:9px/1.8 var(--pixel); text-transform:uppercase; }.card h2 { text-align:center; }.subtle { margin:0 0 22px; color:var(--muted); font-size:18px; text-align:center; }
+    form { display:grid; gap:20px; } label { display:grid; gap:10px; font:8px/1.8 var(--pixel); text-transform:uppercase; }
+    input, textarea { width:100%; min-height:50px; padding:12px; border:3px solid var(--line); border-radius:0; color:var(--ink); background:var(--bg); font:22px/1.3 'VT323',monospace; } textarea { min-height:112px; resize:vertical; }
+    .help { color:var(--muted); font:18px/1.4 'VT323',monospace; text-transform:none; }
+    .submit { min-height:52px; border:3px solid var(--line); background:var(--brand); color:var(--ink); font:9px/1.8 var(--pixel); text-transform:uppercase; box-shadow:4px 4px 0 var(--ink); }.submit:hover { background:#dba2cf; }.submit:disabled { opacity:.5; cursor:wait; }.submit:active:not(:disabled), .back:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+    .status { display:none; margin-top:20px; padding:12px 14px; border:2px solid; font-size:20px; }.status.show { display:block; }.status.success { color:var(--success); background:#eefaf4; border-color:#9cdbba; }.status.error { color:var(--danger); background:#fff0f3; border-color:#f0a6b7; }
+    .store-note { text-align:center; font-size:18px; color:var(--muted); margin-top:28px; }
+    @media (min-width:600px) { .shell { padding-top:36px; } }
+  </style>
 </head>
 <body>
-    <div class="page">
-        <div class="container">
-            <div class="hero">
-                <div class="sparkle" style="top: -20px; right: 10px;">✦</div>
-                <div class="sparkle" style="top: 40px; left: 0; animation-delay: 0.5s;">✦</div>
-                <div class="hero-badge">★ PROGRAM RESELLER ★</div>
-                <h1>MULAI JUALAN PRODUK DIGITAL</h1>
-                <p>Kelola toko Anda sendiri dengan harga dan stok yang fleksibel.</p>
-            </div>
-
-            <div class="benefits">
-                <div class="benefit-row pixel-border">
-                    <div class="benefit-icon">◆</div>
-                    <div class="benefit-content">
-                        <h3>JUAL PRODUK SENDIRI</h3>
-                        <p>Tambahkan produk digital apa saja, atur harga sesuai keinginan.</p>
-                    </div>
-                </div>
-                <div class="benefit-row pixel-border">
-                    <div class="benefit-icon">▲</div>
-                    <div class="benefit-content">
-                        <h3>DASHBOARD REAL-TIME</h3>
-                        <p>Pantau pesanan, stok, dan omzet langsung dari Telegram.</p>
-                    </div>
-                </div>
-                <div class="benefit-row pixel-border">
-                    <div class="benefit-icon">●</div>
-                    <div class="benefit-content">
-                        <h3>STOK & HARGA FLEKSIBEL</h3>
-                        <p>Update kapan saja, perubahan langsung aktif untuk pembeli.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-card pixel-border pixel-shadow">
-                <h2>★ DAFTAR RESELLER ★</h2>
-                <form id="resellerForm">
-                    <div class="field">
-                        <label>NAMA TOKO</label>
-                        <input type="text" id="shopName" placeholder="Toko Digital Ku" required maxlength="50">
-                    </div>
-                    <div class="field">
-                        <label>DESKRIPSI SINGKAT</label>
-                        <textarea id="description" placeholder="Jenis produk yang akan dijual..." required maxlength="200"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>ALAMAT LENGKAP</label>
-                        <textarea id="alamatLengkap" placeholder="Jalan, No. RT/RW, Kelurahan, Kecamatan..." required maxlength="500"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>DOMISILI</label>
-                        <input type="text" id="domisili" placeholder="Jakarta Selatan" required maxlength="100">
-                    </div>
-                    <button type="submit" class="submit-btn" id="submitBtn">
-                        DAFTAR SEKARANG ▸
-                    </button>
-                </form>
-                <div id="status" class="status"></div>
-            </div>
-
-            <div class="speech-bubble pixel-border">
-                Persetujuan admin diperlukan sebelum mulai berjualan.
-            </div>
-
-            <div class="footer-note" style="margin-top: 20px;">
-                ★ BERSAMA STORE ★<br>
-                Toko Produk Digital Terpercaya
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.ready();
-            tg.expand();
-            tg.setHeaderColor('#fefcd0');
-            tg.setBackgroundColor('#fefcd0');
-        }
-
-        const form = document.getElementById('resellerForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const status = document.getElementById('status');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const shopName = document.getElementById('shopName').value.trim();
-            const description = document.getElementById('description').value.trim();
-            const alamatLengkap = document.getElementById('alamatLengkap').value.trim();
-            const domisili = document.getElementById('domisili').value.trim();
-
-            if (!shopName || !description || !alamatLengkap || !domisili) {
-                showStatus('MOHON ISI SEMUA FIELD.', 'error');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner"></span>';
-
-            try {
-                const userId = tg?.initDataUnsafe?.user?.id;
-                if (!userId) {
-                    showStatus('GAGAL MENGIDENTIFIKASI USER. BUKA DARI TELEGRAM.', 'error');
-                    return;
-                }
-
-                const response = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        shop_name: shopName,
-                        description: description,
-                        alamat_lengkap: alamatLengkap,
-                        domisili: domisili
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showStatus('★ BERHASIL! MENUNGGU PERSETUJUAN ADMIN. ★', 'success');
-                    if (tg) tg.close();
-                } else {
-                    showStatus(data.message || 'GAGAL MENDAFTAR.', 'error');
-                }
-            } catch (err) {
-                showStatus('ERROR KONEKSI. COBA LAGI.', 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'DAFTAR SEKARANG ▸';
-            }
-        });
-
-        function showStatus(message, type) {
-            status.textContent = message;
-            status.className = 'status pixel-border ' + type;
-        }
-    </script>
+  <main class="shell">
+    <header class="topbar"><div class="brand">BERSAMA STORE<small>Pendaftaran Reseller</small></div><button class="back" type="button" id="backButton">Kembali ke Bot</button></header>
+    <section class="hero" aria-labelledby="page-title"><span class="eyebrow">★ PROGRAM RESELLER ★</span><h1 id="page-title">Mulai jualan produk digital</h1><p>Kelola toko Anda sendiri dengan harga dan stok yang fleksibel.</p></section>
+    <section class="features" aria-label="Fitur reseller">
+      <article class="feature"><span class="feature-icon" aria-hidden="true">◆</span><div><h2>Jual produk sendiri</h2><p>Tambahkan produk digital Anda dan tentukan harganya.</p></div></article>
+      <article class="feature"><span class="feature-icon" aria-hidden="true">▲</span><div><h2>Dashboard seller</h2><p>Pantau produk, stok, dan penjualan langsung dari Telegram.</p></div></article>
+      <article class="feature"><span class="feature-icon" aria-hidden="true">●</span><div><h2>Stok yang fleksibel</h2><p>Perbarui stok kapan saja melalui dashboard toko Anda.</p></div></article>
+    </section>
+    <section class="card" aria-labelledby="form-title"><h2 id="form-title">★ Daftar reseller ★</h2><p class="subtle">Semua kolom wajib diisi.</p>
+      <form id="resellerForm">
+        <label>Nama toko<input id="shopName" required maxlength="50" autocomplete="organization" placeholder="Toko Digital Saya"></label>
+        <label>Produk yang akan dijual<textarea id="description" required maxlength="200" placeholder="Contoh: voucher dan produk digital"></textarea><span class="help">Maksimal 200 karakter.</span></label>
+        <label>Alamat lengkap<textarea id="alamatLengkap" required maxlength="500" autocomplete="street-address" placeholder="Jalan, nomor, kelurahan, kecamatan"></textarea></label>
+        <label>Domisili<input id="domisili" required maxlength="100" autocomplete="address-level2" placeholder="Kota/Kabupaten"></label>
+        <button class="submit" type="submit" id="submitBtn">Daftar sekarang ▸</button>
+      </form>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </section>
+    <footer class="store-note">Persetujuan admin diperlukan sebelum mulai berjualan.<br><br>★ BERSAMA STORE ★<br>Toko Produk Digital</footer>
+  </main>
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#fefcd0'); tg.setBackgroundColor('#fefcd0'); }
+    const initData = tg?.initData || '';
+    const form = document.getElementById('resellerForm');
+    const submitButton = document.getElementById('submitBtn');
+    const status = document.getElementById('status');
+    function showStatus(message, type = 'error') { status.textContent = message; status.className = 'status show ' + type; }
+    document.getElementById('backButton').addEventListener('click', () => tg?.close());
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!initData) return showStatus('Buka halaman ini melalui aplikasi Telegram untuk melanjutkan.');
+      submitButton.disabled = true;
+      try {
+        const response = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ init_data:initData, shop_name:document.getElementById('shopName').value.trim(), description:document.getElementById('description').value.trim(), alamat_lengkap:document.getElementById('alamatLengkap').value.trim(), domisili:document.getElementById('domisili').value.trim() }) });
+        let data; try { data = await response.json(); } catch { throw new Error('Respons server tidak valid.'); }
+        if (!response.ok || !data.success) throw new Error(data.message || 'Pengajuan tidak dapat dikirim.');
+        showStatus(data.message || 'Pengajuan berhasil dikirim. Menunggu persetujuan admin.', 'success');
+        form.reset();
+      } catch (error) { showStatus(error.message || 'Koneksi bermasalah. Coba lagi.'); }
+      finally { submitButton.disabled = false; }
+    });
+    if (!initData) showStatus('Buka halaman ini melalui aplikasi Telegram untuk melanjutkan.');
+  </script>
 </body>
 </html>

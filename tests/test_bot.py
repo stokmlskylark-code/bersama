@@ -17,10 +17,13 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'customer'
         CHECK(role IN ('customer', 'reseller', 'admin')),
     reseller_request INTEGER NOT NULL DEFAULT 0,
+    alamat_lengkap TEXT NOT NULL DEFAULT '',
+    domisili TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS products (
     sku TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL CHECK(price > 0),
     reseller_price INTEGER NOT NULL CHECK(reseller_price > 0 AND reseller_price <= price),
     stock INTEGER NOT NULL CHECK(stock >= 0),
